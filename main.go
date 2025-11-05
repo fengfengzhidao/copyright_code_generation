@@ -13,10 +13,13 @@ import (
 )
 
 type Config struct {
-	Dir                string   // 读取的代码文件目录
-	IncludeFileSuffix  []string // 需要包含的文件后缀
-	IncludeFileSuffixs string
-	Name               string // 页眉上显示的名字
+	Dir               string   // 读取的代码文件目录
+	IncludeFileSuffix []string // 需要包含的文件后缀
+	includeFileSuffix string
+	excludeDir        string   // 过滤目录
+	ExcludeDir        []string // 过滤目录
+	Name              string   // 页眉上显示的名字
+	Out               string   // 输出的名字
 }
 
 var defaultConfig = Config{}
@@ -24,9 +27,11 @@ var defaultConfig = Config{}
 var fileList []*FileItem
 
 func init() {
-	flag.StringVar(&defaultConfig.Dir, "r", "", "程序目录")
-	flag.StringVar(&defaultConfig.IncludeFileSuffixs, "f", ".go", "需要包含的文件，多个如下 .go;.vue")
-	flag.StringVar(&defaultConfig.Name, "n", "", "页眉的名称")
+	flag.StringVar(&defaultConfig.Dir, "dir", "", "程序目录")
+	flag.StringVar(&defaultConfig.includeFileSuffix, "include_files", ".go", "需要包含的文件，多个如下 .go;.vue")
+	flag.StringVar(&defaultConfig.excludeDir, "exclude_dirs", "testdata;node_modules", "过滤的目录，多个如下 testdata;xxx")
+	flag.StringVar(&defaultConfig.Name, "name", "", "页眉的名称")
+	flag.StringVar(&defaultConfig.Out, "out", "", "输出的名字")
 	flag.Parse()
 }
 
@@ -47,7 +52,8 @@ func FlagsRun() {
 		fmt.Println("请输入目录")
 		os.Exit(0)
 	}
-	defaultConfig.IncludeFileSuffix = strings.Split(defaultConfig.IncludeFileSuffixs, ";")
+	defaultConfig.IncludeFileSuffix = strings.Split(defaultConfig.includeFileSuffix, ";")
+	defaultConfig.ExcludeDir = strings.Split(defaultConfig.excludeDir, ";")
 }
 
 func DocHandler() {
@@ -123,7 +129,7 @@ func DocHandler() {
 		}
 	}
 
-	doc.Save("程序鉴别材料.docx")
+	doc.Save(defaultConfig.Out)
 }
 
 type FileItem struct {
@@ -180,6 +186,19 @@ func walkDirRecursive(dir string, currentDepth int, config Config) error {
 			})
 			continue
 		}
+
+		// 跳过目录
+		var c bool
+		for _, exclude := range config.ExcludeDir {
+			if strings.HasSuffix(entry.Name(), exclude) {
+				c = true
+			}
+		}
+		if c {
+			fmt.Println(entry.Name(), "跳过目录")
+			continue
+		}
+
 		// 如果是目录，递归遍历
 		walkDirRecursive(entryPath, currentDepth+1, config)
 	}
